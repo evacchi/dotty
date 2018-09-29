@@ -2148,7 +2148,8 @@ class Typer extends Namer
     def tryImplicit(fallBack: => Tree) =
       tryInsertImplicitOnQualifier(tree, pt.withContext(ctx), locked).getOrElse(fallBack)
 
-    pt match {
+    if (ctx.mode.is(Mode.FixedQualifier)) tree
+    else pt match {
       case pt @ FunProto(Nil, _)
       if tree.symbol.allOverriddenSymbols.exists(_.info.isNullaryMethod) &&
          tree.getAttachment(DroppedEmptyArgs).isEmpty =>
@@ -2597,6 +2598,25 @@ class Typer extends Namer
               // body is typechecked.
               return toSAM(tree)
             case _ =>
+          }
+        case _ =>
+      }
+      // try an extension method in scope
+      pt match {
+        case SelectionProto(name, mbrType, _, _) =>
+          def tryExtension(implicit ctx: Context): Tree = {
+            val id = typedUnadapted(untpd.Ident(name).withPos(tree.pos))
+            id.tpe match {
+              case ref: TermRef if ref.denot.hasAltWith(_.symbol.is(ExtensionMethod)) =>
+                extMethodApply(untpd.TypedSplice(id), tree, mbrType)
+              case _ => EmptyTree
+            }
+          }
+          val nestedCtx = ctx.fresh.setNewTyperState()
+          val app = tryExtension(nestedCtx)
+          if (!app.isEmpty && !nestedCtx.reporter.hasErrors) {
+            nestedCtx.typerState.commit()
+            return Applications.ExtMethodApply(app).withType(app.tpe)
           }
         case _ =>
       }
