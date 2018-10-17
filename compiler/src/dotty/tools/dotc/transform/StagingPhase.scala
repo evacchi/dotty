@@ -59,9 +59,9 @@ import dotty.tools.dotc.util.SourcePosition
  *  For macro definitions we assume that we have a single ~ directly as the RHS.
  *  The Splicer is used to check that the RHS will be interpretable (with the `Splicer`) once inlined.
  */
-class Staging extends MacroTransformWithImplicits {
+class StagingPhase extends MacroTransformWithImplicits {
   import tpd._
-  import Staging._
+  import StagingPhase._
 
   /** Classloader used for loading macros */
   private[this] var myMacroClassLoader: java.lang.ClassLoader = _
@@ -73,7 +73,7 @@ class Staging extends MacroTransformWithImplicits {
     myMacroClassLoader
   }
 
-  override def phaseName: String = Staging.name
+  override def phaseName: String = StagingPhase.name
 
   override def checkPostCondition(tree: Tree)(implicit ctx: Context): Unit = {
     tree match {
@@ -240,7 +240,7 @@ class Staging extends MacroTransformWithImplicits {
       case Some(l) =>
         l == level ||
         level == -1 && (
-          sym == defn.TastyReflection_macroContext ||
+          sym == defn.Staging_macroContext ||
           // here we assume that Splicer.canBeSpliced was true before going to level -1,
           // this implies that all non-inline arguments are quoted and that the following two cases are checked
           // on inline parameters or type parameters.
@@ -396,9 +396,18 @@ class Staging extends MacroTransformWithImplicits {
         val meth =
           if (isType) ref(defn.Unpickler_unpickleType).appliedToType(originalTp)
           else ref(defn.Unpickler_unpickleExpr).appliedToType(originalTp.widen)
-        meth.appliedTo(
-          liftList(PickledQuotes.pickleQuote(body).map(x => Literal(Constant(x))), defn.StringType),
-          liftList(splices, defn.AnyType))
+        val unpickler = ctx.typer.inferImplicitArg(defn.UnpicklerType, body.pos)
+        unpickler.tpe match {
+          case fail: SearchFailureType =>
+            ctx.error("Missing implicit `Staging` to construct quote.", body.pos)
+            EmptyTree
+          case _ =>
+            meth.appliedTo(
+              liftList(PickledQuotes.pickleQuote(body).map(x => Literal(Constant(x))), defn.StringType),
+              liftList(splices, defn.AnyType),
+              unpickler
+            )
+        }
       }
       if (splices.nonEmpty) pickleAsTasty()
       else if (isType) {
@@ -414,7 +423,7 @@ class Staging extends MacroTransformWithImplicits {
         else if (body.symbol == defn.DoubleClass) tag("DoubleTag")
         else pickleAsTasty()
       }
-      else Staging.toValue(body) match {
+      else StagingPhase.toValue(body) match {
         case Some(value) => pickleAsValue(value)
         case _ => pickleAsTasty()
       }
@@ -635,7 +644,7 @@ class Staging extends MacroTransformWithImplicits {
   }
 }
 
-object Staging {
+object StagingPhase {
   import tpd._
 
   val name: String = "staging"

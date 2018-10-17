@@ -1,6 +1,7 @@
+import scala.quoted.Staging
 class Foo {
   def foo: Unit = {
-    val expr ='{
+    def expr(implicit st: Staging) = '{
       val a = 3
       println("foo")
       2 + a

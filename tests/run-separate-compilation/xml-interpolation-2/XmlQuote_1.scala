@@ -15,8 +15,8 @@ object XmlQuote {
   implicit inline def SCOps(ctx: => StringContext): SCOps = new SCOps(ctx)
 
   def impl(receiver: Expr[SCOps], args: Expr[Seq[Any]])
-          (implicit reflect: Reflection): Expr[Xml] = {
-    import reflect._
+          (implicit staging: Staging): Expr[Xml] = {
+    import staging.reflection._
     import Term._
 
     // for debugging purpose

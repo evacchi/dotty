@@ -12,8 +12,8 @@ object XmlQuote {
   }
 
   def impl(receiver: Expr[SCOps], args: Expr[Seq[Any]])
-          (implicit reflect: Reflection): Expr[Xml] = {
-    import reflect._
+          (implicit staging: Staging): Expr[Xml] = {
+    import staging.reflection._
     import Term._
 
     def abort(msg: String): Nothing =
