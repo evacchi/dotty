@@ -1,7 +1,7 @@
 package dotty.tools.dotc.tastyreflect
 
 import dotty.tools.dotc.core.Contexts.FreshContext
-import dotty.tools.dotc.core.quoted.PickledQuotes
+import dotty.tools.dotc.core.quoted.{PickledQuotes, Quoted}
 import dotty.tools.dotc.reporting.Reporter
 import dotty.tools.dotc.reporting.diagnostic.MessageContainer
 
@@ -19,7 +19,7 @@ trait QuotedOpsImpl extends scala.tasty.reflect.QuotedOps with CoreImpl {
 
     def seal[T: scala.quoted.Type](implicit ctx: Context): scala.quoted.Expr[T] = {
       typecheck(ctx)
-      new scala.quoted.Exprs.TastyTreeExpr(term).asInstanceOf[scala.quoted.Expr[T]]
+      new scala.quoted.Exprs.TastyTreeExpr(term, PickledQuotes.contextId).asInstanceOf[scala.quoted.Expr[T]]
     }
 
     private def typecheck[T: scala.quoted.Type](ctx: Context): Unit = {
