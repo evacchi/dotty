@@ -270,16 +270,15 @@ HkTypeParamClause ::=  ‘[’ HkTypeParam {‘,’ HkTypeParam} ‘]’
 HkTypeParam       ::=  {Annotation} [‘+’ | ‘-’] (Id[HkTypeParamClause] | ‘_’)
                        TypeBounds
 
-ClsParamClauses   ::=  {ClsParamClause} [[nl] ‘(’ [FunArgMods] ClsParams ‘)’]
-ClsParamClause    ::=  [nl | ‘with’] ‘(’ [ClsParams] ‘)’
+ClsParamClauses   ::=  {ClsParamClause}
+ClsParamClause    ::=  [nl | ‘with’] ‘(’ [[FunArgMods] ClsParams] ‘)’
 ClsParams         ::=  ClsParam {‘,’ ClsParam}
 ClsParam          ::=  {Annotation}                                             ValDef(mods, id, tpe, expr) -- point of mods on val/var
                        [{Modifier} (‘val’ | ‘var’) | ‘inline’] Param
 Param             ::=  id ‘:’ ParamType [‘=’ Expr]
                     |  INT
-
-DefParamClauses   ::=  {DefParamClause} [[nl] ‘(’ [FunArgMods] DefParams ‘)’]
-DefParamClause    ::=  [nl | ‘with’] ‘(’ [DefParams] ‘)’
+DefParamClauses   ::=  {DefParamClause}
+DefParamClause    ::=  [nl | ‘with’] ‘(’ [FunArgMods] [DefParams] ‘)’
 ExtParamClause    ::=  [nl] ‘(’ ‘this’ DefParam ‘)’
 DefParams         ::=  DefParam {‘,’ DefParam}
 DefParam          ::=  {Annotation} [‘inline’] Param                            ValDef(mods, id, tpe, expr) -- point of mods at id.

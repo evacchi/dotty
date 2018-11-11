@@ -10,3 +10,5 @@ t8133b
 tuples1.scala
 tuples1a.scala
 implicitMatch.scala
+witnesses.scala
+witnesses-anonymous.scala
