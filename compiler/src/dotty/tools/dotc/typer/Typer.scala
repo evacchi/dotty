@@ -859,7 +859,7 @@ class Typer extends Namer
       *         every parameter in `params`.
       */
     def calleeType: Type = fnBody match {
-      case Apply(expr, args) =>
+      case app @ Apply(expr, args) =>
         paramIndex = {
           for (param <- params; idx <- paramIndices(param, args))
           yield param.name -> idx
@@ -870,7 +870,7 @@ class Typer extends Namer
               expr1.tpe
             case _ =>
               val protoArgs = args map (_ withType WildcardType)
-              val callProto = FunProto(protoArgs, WildcardType)(this)
+              val callProto = FunProto(protoArgs, WildcardType)(this, isContextual = app.isContextual)
               val expr1 = typedExpr(expr, callProto)
               fnBody = cpy.Apply(fnBody)(untpd.TypedSplice(expr1), args)
               expr1.tpe
@@ -2255,7 +2255,8 @@ class Typer extends Namer
               errorTree(tree, NoMatchingOverload(altDenots, pt)(err))
             def hasEmptyParams(denot: SingleDenotation) = denot.info.paramInfoss == ListOfNil
             pt match {
-              case pt: FunProto =>
+              case pt: FunProto if !pt.isContextual =>
+              	// insert apply or convert qualifier only for a regular application
                 tryInsertApplyOrImplicit(tree, pt, locked)(noMatches)
               case _ =>
                 if (altDenots exists (_.info.paramInfoss == ListOfNil))
@@ -2285,11 +2286,16 @@ class Typer extends Namer
       }
 
       def adaptToArgs(wtp: Type, pt: FunProto): Tree = wtp match {
-        case _: MethodOrPoly =>
-          if (pt.args.lengthCompare(1) > 0 && isUnary(wtp) && ctx.canAutoTuple)
-            adapt(tree, pt.tupled, locked)
+        case wtp: MethodOrPoly =>
+          if (wtp.isContextual == pt.isContextual)
+            if (pt.args.lengthCompare(1) > 0 && isUnary(wtp) && ctx.canAutoTuple)
+              adapt(tree, pt.tupled, locked)
+            else
+              tree
+          else if (wtp.isContextual)
+            adaptNoArgs(wtp)  // insert arguments implicitly
           else
-            tree
+            errorTree(tree, em"Missing arguments for ${methPart(tree).symbol.showLocated}")
         case _ => tryInsertApplyOrImplicit(tree, pt, locked) {
           errorTree(tree, MethodDoesNotTakeParameters(tree))
         }

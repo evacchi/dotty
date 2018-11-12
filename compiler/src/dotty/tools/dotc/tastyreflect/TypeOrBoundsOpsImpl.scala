@@ -14,7 +14,7 @@ trait TypeOrBoundsOpsImpl extends scala.tasty.reflect.TypeOrBoundsOps with CoreI
   def MethodTypeDeco(tpe: MethodType): MethodTypeAPI = new MethodTypeAPI {
     def isErased: Boolean = tpe.isErasedMethod
     def isImplicit: Boolean = tpe.isImplicitMethod
-    def isContextual: Boolean = tpe.isContextualMethod
+    def isContextual: Boolean = tpe.isContextual
     def paramNames(implicit ctx: Context): List[String] = tpe.paramNames.map(_.toString)
     def paramTypes(implicit ctx: Context): List[Type] = tpe.paramInfos
     def resultTpe(implicit ctx: Context): Type = tpe.resType
