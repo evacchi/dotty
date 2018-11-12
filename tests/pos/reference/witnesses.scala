@@ -91,6 +91,32 @@ object Witnesses extends Common {
     println(maximum(xs) with (descending with IntOrd))
     println(minimum(xs))
   }
+
+  case class Context(value: String)
+  val c0: Context |=> String = ctx |=> ctx.value
+  val c1: (Context |=> String) = (ctx: Context) |=> ctx.value
+
+  class A
+  class B
+  val ab: (x: A, y: B) |=> Int = (a: A, b: B) |=> 22
+}
+
+object PostConditions {
+  opaque type WrappedResult[T] = T
+
+  private witness WrappedResult {
+    def apply[T](x: T): WrappedResult[T] = x
+    def unwrap[T](this x: WrappedResult[T]): T = x
+  }
+
+  def result[T] with (wrapped: WrappedResult[T]): T = wrapped.unwrap
+
+  witness {
+    def ensuring[T](this x: T)(condition: WrappedResult[T] |=> Boolean): T = {
+      assert(condition with WrappedResult(x))
+      x
+    }
+  }
 }
 
 object AnonymousWitnesses extends Common {
@@ -174,4 +200,7 @@ object Implicits extends Common {
 
 object Test extends App {
   Witnesses.test()
+  import PostConditions._
+  val s = List(1, 2, 3).sum
+  s.ensuring(result == 6)
 }
