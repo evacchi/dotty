@@ -138,4 +138,140 @@ trait TreeUtils
 
   }
 
+  abstract class TreeMap { self =>
+
+    def transformTree(tree: Tree)(implicit ctx: Context): Tree = {
+      def localCtx(definition: Definition): Context = definition.symbol.localContext
+      tree match {
+        case IsTerm(tree) => transformTerm(tree)
+      }
+    }
+
+    def transformTerm(tree: Term)(implicit ctx: Context): Term = {
+      tree match {
+        case Term.Ident(name) =>
+          tree
+        case Term.Select(qualifier, name, sig) =>
+          Term.Select.copy(tree)(transformTerm(qualifier), name)
+        case Term.This(qual) =>
+          tree
+        case Term.Super(qual, mix) =>
+          Term.Super.copy(tree)(transformTerm(qual), mix)
+        case Term.Apply(fun, args) =>
+          Term.Apply.copy(tree)(transformTerm(fun), transformTerms(args))
+        case Term.TypeApply(fun, args) =>
+          Term.TypeApply.copy(tree)(transformTerm(fun), transformTypeTrees(args))
+        case Term.Literal(const) =>
+          tree
+//        case New(tpt) =>
+//          New.copy(tree)(transform(tpt))
+//        case Typed(expr, tpt) =>
+//          Typed.copy(tree)(transform(expr), transform(tpt))
+//        case NamedArg(name, arg) =>
+//          NamedArg.copy(tree)(name, transform(arg))
+//        case Assign(lhs, rhs) =>
+//          Assign.copy(tree)(transform(lhs), transform(rhs))
+//        case Block(stats, expr) =>
+//          Block.copy(tree)(transformStats(stats), transform(expr))
+//        case If(cond, thenp, elsep) =>
+//          If.copy(tree)(transform(cond), transform(thenp), transform(elsep))
+//        case Closure(env, meth, tpt) =>
+//          Closure.copy(tree)(transform(env), transform(meth), transform(tpt))
+//        case Match(selector, cases) =>
+//          Match.copy(tree)(transform(selector), transformSub(cases))
+//        case CaseDef(pat, guard, body) =>
+//          CaseDef.copy(tree)(transform(pat), transform(guard), transform(body))
+//        case Labeled(bind, expr) =>
+//          Labeled.copy(tree)(transformSub(bind), transform(expr))
+//        case Return(expr, from) =>
+//          Return.copy(tree)(transform(expr), transformSub(from))
+//        case WhileDo(cond, body) =>
+//          WhileDo.copy(tree)(transform(cond), transform(body))
+//        case Try(block, cases, finalizer) =>
+//          Try.copy(tree)(transform(block), transformSub(cases), transform(finalizer))
+//        case SeqLiteral(elems, elemtpt) =>
+//          SeqLiteral.copy(tree)(transform(elems), transform(elemtpt))
+        case Term.Inlined(call, bindings, expansion) =>
+          Term.Inlined.copy(tree)(call, transformSub(bindings), transformTerm(expansion)/*()call.symbol.localContext)*/)
+//        case TypeTree() =>
+//          tree
+//        case SingletonTypeTree(ref) =>
+//          SingletonTypeTree.copy(tree)(transform(ref))
+//        case AndTypeTree(left, right) =>
+//          AndTypeTree.copy(tree)(transform(left), transform(right))
+//        case OrTypeTree(left, right) =>
+//          OrTypeTree.copy(tree)(transform(left), transform(right))
+//        case RefinedTypeTree(tpt, refinements) =>
+//          RefinedTypeTree.copy(tree)(transform(tpt), transformSub(refinements))
+//        case AppliedTypeTree(tpt, args) =>
+//          AppliedTypeTree.copy(tree)(transform(tpt), transform(args))
+//        case LambdaTypeTree(tparams, body) =>
+//          implicit val ctx = localCtx
+//          LambdaTypeTree.copy(tree)(transformSub(tparams), transform(body))
+//        case MatchTypeTree(bound, selector, cases) =>
+//          MatchTypeTree.copy(tree)(transform(bound), transform(selector), transformSub(cases))
+//        case ByNameTypeTree(result) =>
+//          ByNameTypeTree.copy(tree)(transform(result))
+//        case TypeBoundsTree(lo, hi) =>
+//          TypeBoundsTree.copy(tree)(transform(lo), transform(hi))
+//        case Bind(name, body) =>
+//          Bind.copy(tree)(name, transform(body))
+//        case Alternative(trees) =>
+//          Alternative.copy(tree)(transform(trees))
+//        case UnApply(fun, implicits, patterns) =>
+//          UnApply.copy(tree)(transform(fun), transform(implicits), transform(patterns))
+//        case EmptyValDef =>
+//          tree
+//        case tree @ ValDef(name, tpt, _) =>
+//          implicit val ctx = localCtx
+//          val tpt1 = transform(tpt)
+//          val rhs1 = transform(tree.rhs)
+//          ValDef.copy(tree)(name, tpt1, rhs1)
+//        case tree @ DefDef(name, tparams, vparamss, tpt, _) =>
+//          implicit val ctx = localCtx
+//          DefDef.copy(tree)(name, transformSub(tparams), vparamss mapConserve (transformSub(_)), transform(tpt), transform(tree.rhs))
+//        case tree @ TypeDef(name, rhs) =>
+//          implicit val ctx = localCtx
+//          TypeDef.copy(tree)(name, transform(rhs))
+//        case tree @ Template(constr, parents, self, _) =>
+//          Template.copy(tree)(transformSub(constr), transform(parents), transformSub(self), transformStats(tree.body))
+//        case Import(expr, selectors) =>
+//          Import.copy(tree)(transform(expr), selectors)
+//        case PackageDef(pid, stats) =>
+//          PackageDef.copy(tree)(transformSub(pid), transformStats(stats)(localCtx))
+//        case Annotated(arg, annot) =>
+//          Annotated.copy(tree)(transform(arg), transform(annot))
+//        case Thicket(trees) =>
+//          val trees1 = transform(trees)
+//          if (trees1 eq trees) tree else Thicket(trees1)
+//        case _ =>
+//          tree
+
+      }
+    }
+
+    def transformTypeTree(tree: TypeTree)(implicit ctx: Context): TypeTree = {
+      ???
+    }
+
+    def transformTrees(trees: List[Tree])(implicit ctx: Context): List[Tree] =
+      trees mapConserve (transformTree(_))
+
+    def transformTerms(trees: List[Term])(implicit ctx: Context): List[Term] =
+      trees mapConserve (transformTerm(_))
+
+    def transformTypeTrees(trees: List[TypeTree])(implicit ctx: Context): List[TypeTree] =
+      trees mapConserve (transformTypeTree(_))
+
+//    def transformStats(trees: List[Tree])(implicit ctx: Context): List[Tree] =
+//      transform(trees)
+//    def transform(trees: List[Tree])(implicit ctx: Context): List[Tree] =
+//      flatten(trees mapConserve (transform(_)))
+//    def transformSub[Tr <: Tree](tree: Tr)(implicit ctx: Context): Tr =
+//      transform(tree).asInstanceOf[Tr]
+    def transformSub[Tr <: Tree](trees: List[Tr])(implicit ctx: Context): List[Tr] =
+      transformTrees(trees).asInstanceOf[List[Tr]]
+
+  }
+
 }

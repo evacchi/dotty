@@ -12,8 +12,9 @@ package scala.tasty.reflect
  *                         |               +- DefDef
  *                         |               +- ValDef
  *                         |
- *                         +- Term --------+- Ident
- *                                         +- Select
+ *                         +- Term --------+- Ref -+- Ident
+ *                                         |       +- Select
+ *                                         |
  *                                         +- Literal
  *                                         +- This
  *                                         +- New
@@ -33,8 +34,6 @@ package scala.tasty.reflect
  *                                         +- Inlined
  *                                         +- SelectOuter
  *                                         +- While
- *                                         +- DoWhile
- *
  *
  *                         +- TypeTree ----+- Synthetic
  *                         |               +- Ident
@@ -156,6 +155,28 @@ trait Core {
 
       /** Tree representing an expression in the source code. */
       type Term <: Statement
+        type Ref <: Term
+          type Ident <: Ref
+          type Select <: Ref
+        type Literal <: Term
+        type This <: Term
+        type New <: Term
+        type NamedArg <: Term
+        type Apply <: Term
+        type TypeApply <: Term
+        type Super <: Term
+        type Typed <: Term
+        type Assign <: Term
+        type Block <: Term
+        type Lambda <: Term
+        type If <: Term
+        type Match <: Term
+        type Try <: Term
+        type Return <: Term
+        type Repeated <: Term
+        type Inlined <: Term
+        type SelectOuter <: Term
+        type While <: Term
 
         // TODO Add subtype types of Term for documentation? Or support refined bindings and add the types.
 
