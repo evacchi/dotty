@@ -278,7 +278,6 @@ Param             ::=  id ‘:’ ParamType [‘=’ Expr]
                     |  INT
 DefParamClauses   ::=  {DefParamClause}
 DefParamClause    ::=  [nl | ‘with’] ‘(’ [FunArgMods] [DefParams] ‘)’
-ExtParamClause    ::=  [nl] ‘(’ ‘this’ DefParam ‘)’
 DefParams         ::=  DefParam {‘,’ DefParam}
 DefParam          ::=  {Annotation} [‘inline’] Param                            ValDef(mods, id, tpe, expr) -- point of mods at id.
 ```

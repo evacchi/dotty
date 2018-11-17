@@ -2266,7 +2266,7 @@ object Parsers {
     /** DefDef ::= DefSig [(‘:’ | ‘<:’) Type] ‘=’ Expr
      *           | this ParamClause ParamClauses `=' ConstrExpr
      *  DefDcl ::= DefSig `:' Type
-     *  DefSig ::= id [DefTypeParamClause] [ExtParamClause] DefParamClauses
+     *  DefSig ::= id [DefTypeParamClause] ParamClauses
      */
     def defDefOrDcl(start: Offset, mods: Modifiers): Tree = atPos(start, nameStart) {
       def scala2ProcedureSyntax(resultTypeStr: String) = {
@@ -2280,7 +2280,7 @@ object Parsers {
       }
       if (in.token == THIS) {
         in.nextToken()
-        val (vparamss, _) = paramClauses()
+        val vparamss = paramClauses()
         if (vparamss.isEmpty || vparamss.head.take(1).exists(_.mods.is(Implicit)))
           in.token match {
             case LBRACKET   => syntaxError("no type parameters allowed here")
@@ -2294,7 +2294,7 @@ object Parsers {
         }
         makeConstructor(Nil, vparamss, rhs).withMods(mods).setComment(in.getDocComment(start))
       } else {
-        var mods1 = addFlag(mods, Method)
+        val mods1 = addFlag(mods, Method)
         val name = ident()
         val tparams = typeParamClauseOpt(ParamOwner.Def)
         val (vparamss, isExtension) = paramClauses(ofRegularMethod = true)
@@ -2430,7 +2430,7 @@ object Parsers {
     def classConstr(isCaseClass: Boolean = false): DefDef = atPos(in.lastOffset) {
       val tparams = typeParamClauseOpt(ParamOwner.Class)
       val cmods = fromWithinClassConstr(constrModsOpt())
-      val (vparamss, _) = paramClauses(ofClass = true, ofCaseClass = isCaseClass)
+      val vparamss = paramClauses(ofClass = true, ofCaseClass = isCaseClass)
       makeConstructor(tparams, vparamss).withMods(cmods)
     }
 
