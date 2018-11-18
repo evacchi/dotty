@@ -2006,13 +2006,15 @@ object Parsers {
      *  DefParam          ::=  {Annotation} [`inline'] Param
      *  Param             ::=  id `:' ParamType [`=' Expr]
      *
-     *  @return   the list of parameter definitions, and whether this is an extension clause
+     *  @return   the list of parameter definitions
      */
-    def paramClause(ofClass: Boolean,
-                    ofCaseClass: Boolean,
-                    ofRegularMethod: Boolean,
-                    firstClause: Boolean,
-                    impliedMods: Modifiers): (List[ValDef], Boolean) = {
+    def paramClause(ofClass: Boolean = false,                // owner is a class
+                    ofCaseClass: Boolean = false,            // owner is a case class
+                    ofMethod: Boolean = false,               // owner is a method or constructor
+                    prefix: Boolean = false,                 // clause precedes name of an extension method
+                    firstClause: Boolean = false,            // clause is the first in regular list of clauses
+                    impliedMods: Modifiers = EmptyModifiers) // the implied modifiers for parameters
+                    : List[ValDef] = {
       var implicitOffset = -1 // use once
 
       def param(impliedMods: Modifiers): ValDef = {
@@ -2060,14 +2062,21 @@ object Parsers {
         }
       }
 
+      def checkVarArgsRules(vparams: List[ValDef]): Unit = vparams match {
+        case Nil =>
+        case _ :: Nil if !prefix =>
+        case vparam :: rest =>
+          vparam.tpt match {
+            case PostfixOp(_, op) if op.name == tpnme.raw.STAR =>
+              syntaxError(VarArgsParamMustComeLast(), vparam.tpt.pos)
+            case _ =>
+          }
+          checkVarArgsRules(rest)
+      }
+
       // begin paramClause
       inParens {
-        if (in.token == RPAREN)
-          (Nil, false)
-        else if (in.token == THIS && firstClause && ofRegularMethod) {
-          in.nextToken()
-          (param(impliedMods) :: Nil, true)
-        }
+        if (in.token == RPAREN && !prefix) Nil
         else {
           def funArgMods(mods: Modifiers): Modifiers =
             if (in.token == IMPLICIT && !impliedMods.is(Contextual)) {
@@ -2079,9 +2088,11 @@ object Parsers {
             else mods
 
           val impliedMods1 = funArgMods(impliedMods)
-          val clause = commaSeparated(() => param(impliedMods1))
+          val clause =
+            if (prefix) param(impliedMods1) :: Nil
+            else commaSeparated(() => param(impliedMods1))
           checkVarArgsRules(clause)
-          (clause, false)
+          clause
         }
       }
     }
@@ -2089,13 +2100,13 @@ object Parsers {
     /** ClsParamClauses   ::=  {ClsParamClause}
      *  DefParamClauses   ::=  {DefParamClause}
      *
-     *  @return  The parameter definitions, and whether leading parameter is tagged `this`
+     *  @return  The parameter definitions
      */
     def paramClauses(ofClass: Boolean = false,
                      ofCaseClass: Boolean = false,
-                     ofRegularMethod: Boolean = false,
-                     ofWitness: Boolean = false): (List[List[ValDef]], Boolean) = {
-      def recur(firstClause: Boolean): (List[List[ValDef]], Boolean) = {
+                     ofMethod: Boolean = false,
+                     ofWitness: Boolean = false): (List[List[ValDef]]) = {
+      def recur(firstClause: Boolean): List[List[ValDef]] = {
         val impliedMods =
           if (in.token == WITH) {
             in.nextToken()
@@ -2104,14 +2115,17 @@ object Parsers {
           else EmptyModifiers
         newLineOptWhenFollowedBy(LPAREN)
         if (impliedMods.is(Contextual) || in.token == LPAREN && !ofWitness) {
-          val (params, isExtension) =
-            paramClause(ofClass, ofCaseClass, ofRegularMethod, firstClause, impliedMods)
+          val params = paramClause(
+              ofClass = ofClass,
+              ofCaseClass = ofCaseClass,
+              ofMethod = ofMethod,
+              firstClause = firstClause,
+              impliedMods = impliedMods)
           val lastClause =
             params.nonEmpty && params.head.mods.flags.is(Implicit, butNot = Contextual)
-          val paramss = if (lastClause) Nil else recur(firstClause = false)._1
-          (params :: paramss, isExtension)
+          params :: (if (lastClause) Nil else recur(firstClause = false))
         }
-        else (Nil, false)
+        else Nil
       }
       recur(firstClause = true)
     }
@@ -2252,21 +2266,10 @@ object Parsers {
       }
     }
 
-    private def checkVarArgsRules(vparams: List[ValDef]): Unit = vparams match {
-      case Nil | _ :: Nil =>
-      case vparam :: rest =>
-        vparam.tpt match {
-          case PostfixOp(_, op) if op.name == tpnme.raw.STAR =>
-            syntaxError(VarArgsParamMustComeLast(), vparam.tpt.pos)
-          case _ =>
-        }
-        checkVarArgsRules(vparams.tail)
-    }
-
     /** DefDef ::= DefSig [(‘:’ | ‘<:’) Type] ‘=’ Expr
      *           | this ParamClause ParamClauses `=' ConstrExpr
      *  DefDcl ::= DefSig `:' Type
-     *  DefSig ::= id [DefTypeParamClause] ParamClauses
+     *  DefSig ::= ‘(’ DefParam ‘)’ [nl] id [DefTypeParamClause] ParamClauses
      */
     def defDefOrDcl(start: Offset, mods: Modifiers): Tree = atPos(start, nameStart) {
       def scala2ProcedureSyntax(resultTypeStr: String) = {
@@ -2294,11 +2297,15 @@ object Parsers {
         }
         makeConstructor(Nil, vparamss, rhs).withMods(mods).setComment(in.getDocComment(start))
       } else {
-        val mods1 = addFlag(mods, Method)
+        val (leadingParamss: List[List[ValDef]], flags: FlagSet) =
+          if (in.token == LPAREN)
+            (paramClause(ofMethod = true, prefix = true) :: Nil, Method | Extension)
+          else
+            (Nil, Method)
+        val mods1 = addFlag(mods, flags)
         val name = ident()
         val tparams = typeParamClauseOpt(ParamOwner.Def)
-        val (vparamss, isExtension) = paramClauses(ofRegularMethod = true)
-        if (isExtension) mods1 = mods1 | Extension
+        val vparamss = leadingParamss ::: paramClauses(ofMethod = true)
         var tpt = fromWithinReturnType {
           if (in.token == SUBTYPE && mods.is(Inline)) {
             in.nextToken()
@@ -2511,7 +2518,7 @@ object Parsers {
     def witnessDef(start: Offset, mods: Modifiers, witnessMod: Mod) = atPos(start, nameStart) {
       val name = if (isIdent) ident() else EmptyTermName
       val tparams = typeParamClauseOpt(ParamOwner.Def)
-      val (vparamss, _) = paramClauses(ofWitness = true)
+      val vparamss = paramClauses(ofWitness = true)
       val parents =
         if (in.token == FOR) {
           in.nextToken()
