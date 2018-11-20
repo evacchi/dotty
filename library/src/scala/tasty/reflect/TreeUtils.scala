@@ -143,8 +143,13 @@ trait TreeUtils
     def transformTree(tree: Tree)(implicit ctx: Context): Tree = {
       def localCtx(definition: Definition): Context = definition.symbol.localContext
       tree match {
-        case IsTerm(tree) => transformTerm(tree)
+        case IsStatement(tree) => transformStatement(tree)
       }
+    }
+
+    def transformStatment(tree: Statment)(implicit ctx: Context): Statement = tree match {
+        case IsTerm(tree) => transformTerm(tree)
+
     }
 
     def transformTerm(tree: Term)(implicit ctx: Context): Term = {
@@ -171,8 +176,8 @@ trait TreeUtils
 //          NamedArg.copy(tree)(name, transform(arg))
 //        case Assign(lhs, rhs) =>
 //          Assign.copy(tree)(transform(lhs), transform(rhs))
-//        case Block(stats, expr) =>
-//          Block.copy(tree)(transformStats(stats), transform(expr))
+        case Term.Block(stats, expr) =>
+          Term.Block.copy(tree)(transformStats(stats), transformExpr(expr))
 //        case If(cond, thenp, elsep) =>
 //          If.copy(tree)(transform(cond), transform(thenp), transform(elsep))
 //        case Closure(env, meth, tpt) =>
@@ -253,6 +258,9 @@ trait TreeUtils
     def transformTypeTree(tree: TypeTree)(implicit ctx: Context): TypeTree = {
       ???
     }
+
+    def transformStats(trees: List[Statement])(implicit ctx: Context): List[Statement] =
+      trees mapConserve (transformStatement(_))
 
     def transformTrees(trees: List[Tree])(implicit ctx: Context): List[Tree] =
       trees mapConserve (transformTree(_))
