@@ -2010,7 +2010,6 @@ object Parsers {
      */
     def paramClause(ofClass: Boolean = false,                // owner is a class
                     ofCaseClass: Boolean = false,            // owner is a case class
-                    ofMethod: Boolean = false,               // owner is a method or constructor
                     prefix: Boolean = false,                 // clause precedes name of an extension method
                     firstClause: Boolean = false,            // clause is the first in regular list of clauses
                     impliedMods: Modifiers = EmptyModifiers) // the implied modifiers for parameters
@@ -2104,7 +2103,6 @@ object Parsers {
      */
     def paramClauses(ofClass: Boolean = false,
                      ofCaseClass: Boolean = false,
-                     ofMethod: Boolean = false,
                      ofWitness: Boolean = false): (List[List[ValDef]]) = {
       def recur(firstClause: Boolean): List[List[ValDef]] = {
         val impliedMods =
@@ -2118,7 +2116,6 @@ object Parsers {
           val params = paramClause(
               ofClass = ofClass,
               ofCaseClass = ofCaseClass,
-              ofMethod = ofMethod,
               firstClause = firstClause,
               impliedMods = impliedMods)
           val lastClause =
@@ -2299,13 +2296,13 @@ object Parsers {
       } else {
         val (leadingParamss: List[List[ValDef]], flags: FlagSet) =
           if (in.token == LPAREN)
-            (paramClause(ofMethod = true, prefix = true) :: Nil, Method | Extension)
+            (paramClause(prefix = true) :: Nil, Method | Extension)
           else
             (Nil, Method)
         val mods1 = addFlag(mods, flags)
         val name = ident()
         val tparams = typeParamClauseOpt(ParamOwner.Def)
-        val vparamss = paramClauses(ofMethod = true) match {
+        val vparamss = paramClauses() match {
           case rparams :: rparamss if leadingParamss.nonEmpty && !isLeftAssoc(name) =>
             rparams :: leadingParamss ::: rparamss
           case rparamss =>
@@ -2565,22 +2562,6 @@ object Parsers {
       val t = checkWildcard(annotType(), fallbackTree = Ident(nme.ERROR))
       if (in.token == LPAREN) parArgumentExprss(wrapNew(t))
       else t
-    }
-
-    def constrAppsToType(apps: List[Tree]): Tree = {
-      def constrType(app: Tree): Tree = app match {
-        case Apply(app1, _) =>
-          syntaxError(i"illegal type of witness alias: $app", app.pos)
-          constrType(app1)
-        case Select(app1, nme.CONSTRUCTOR) => constrType(app1)
-        case New(app1) => app1
-        case _ => TypeTree()
-      }
-      if (apps.isEmpty) TypeTree()
-      else {
-        val tpes = apps.map(constrType)
-        tpes.filterNot(_.isInstanceOf[TypeTree]).reduce(AndTypeTree)
-      }
     }
 
     /** Template          ::=  ConstrApps [TemplateBody] | TemplateBody
