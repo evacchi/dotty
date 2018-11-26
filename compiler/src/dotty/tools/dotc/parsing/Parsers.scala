@@ -642,8 +642,8 @@ object Parsers {
 
     /** QualId ::= id {`.' id}
     */
-    def qualId(): Tree =
-      dotSelectors(termIdent())
+    val qualId: () => Tree =
+      () => dotSelectors(termIdent())
 
     /** SimpleExpr    ::= literal
      *                  | symbol
@@ -2404,7 +2404,7 @@ object Parsers {
       ModuleDef(name, templ).withMods(mods).setComment(in.getDocComment(start))
     }
 
-    /**  EnumDef ::=  id ClassConstr [`extends' ConstrApps] EnumBody
+    /**  EnumDef ::=  id ClassConstr InheritClauses EnumBody
      */
     def enumDef(start: Offset, mods: Modifiers, enumMod: Mod): TypeDef = atPos(start, nameStart) {
       val modName = ident()
@@ -2485,15 +2485,32 @@ object Parsers {
       t :: ts
     }
 
-    /** Template          ::=  [‘extends’ ConstrApps] [TemplateBody]
+    /** InheritClauses ::=  [‘extends’ ConstrApps] [‘derives’ QualId {‘,’ QualId}]
      */
-    def template(constr: DefDef, isEnum: Boolean = false): Template = {
-      val parents =
+    def inheritClauses(): (List[Tree], List[Tree]) = {
+      val extended =
         if (in.token == EXTENDS) {
           in.nextToken()
-          constrApps()
+          if (in.token == LBRACE) {
+            in.errorOrMigrationWarning("`extends' must be followed by at least one parent")
+            Nil
+          }
+          else constrApps()
         }
         else Nil
+      val derived =
+        if (in.token == DERIVES) {
+          in.nextToken()
+          tokenSeparated(COMMA, qualId)
+        }
+        else Nil
+      (extended, derived)
+    }
+
+    /** Template          ::=  InheritClauses [TemplateBody]
+     */
+    def template(constr: DefDef, isEnum: Boolean = false): Template = {
+      val (parents, deriveds) = inheritClauses()
       newLineOptWhenFollowedBy(LBRACE)
       if (isEnum && in.token != LBRACE)
         syntaxErrorOrIncomplete(ExpectedTokenButFound(LBRACE, in.token))
@@ -2504,7 +2521,7 @@ object Parsers {
      */
     def templateOpt(constr: DefDef, isEnum: Boolean = false): Template = {
       newLineOptWhenFollowedBy(LBRACE)
-      if (in.token == EXTENDS || in.token == LBRACE)
+      if (in.token == EXTENDS || in.token == DERIVES || in.token == LBRACE)
         template(constr, isEnum)
       else
         Template(constr, Nil, EmptyValDef, Nil)
