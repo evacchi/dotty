@@ -623,7 +623,7 @@ object Build {
         val args: List[String] = spaceDelimited("<arg>").parsed.toList
         val attList = (dependencyClasspath in Runtime).value
         val jars = packageAll.value
-        val sep = File.pathSeparator
+        import File.{  pathSeparator => sep }
 
         val scalaLib = findLib(attList, "scala-library")
         val dottyLib = jars("dotty-library")
